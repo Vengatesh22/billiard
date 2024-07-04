@@ -43,7 +43,7 @@ from .exceptions import (
 )
 from time import monotonic
 from queue import Queue, Empty
-from .util import Finalize, debug, warning
+from .util import Finalize, debug, warning, info
 
 MAXMEM_USED_FMT = """\
 child process exiting after exceeding memory limit ({0}KiB / {1}KiB)
@@ -284,11 +284,15 @@ class Worker:
         sys.exit = exit
 
         pid = os.getpid()
-
+        print(f"In call method: {pid}")
         self._make_child_methods()
+        print(f"Made child methods: {pid}")
         self.after_fork()
+        print(f"after fork: {pid}")
         self.on_loop_start(pid=pid)  # callback on loop start
+        print(f"on loop start: {pid}")
         try:
+            print("Beginning workloop")
             sys.exit(self.workloop(pid=pid))
         except Exception as exc:
             error('Pool process %r error: %r', self, exc, exc_info=1)
@@ -1137,9 +1141,11 @@ class Pool:
         return self._inqueue, self._outqueue, None
 
     def _create_worker_process(self, i):
+        print(f"{i} Begin create worker process from Billiard Pool")
         sentinel = self._ctx.Event() if self.allow_restart else None
         inq, outq, synq = self.get_process_queues()
         on_ready_counter = self._ctx.Value('i')
+        print(f"{i} Begin Woker Initialization from Billiard Pool")
         w = self.WorkerProcess(self.Worker(
             inq, outq, synq, self._initializer, self._initargs,
             self._maxtasksperchild, sentinel, self._on_process_exit,
@@ -1150,16 +1156,26 @@ class Pool:
             max_memory_per_child=self._max_memory_per_child,
             on_ready_counter=on_ready_counter,
         ))
+        print(f"{i} with pid {w.pid} created from Billiard Pool, {w.name}")
+        print(f"{i} End Woker Initialization from Billiard Pool")
         self._pool.append(w)
+        print(f"{i} End pool append from Billiard Pool")
         self._process_register_queues(w, (inq, outq, synq))
+        print(f"{i} End pool register from Billiard Pool")
         w.name = w.name.replace('Process', 'PoolWorker')
         w.daemon = True
         w.index = i
+        print(f"{i} Begin start worker from Billiard Pool")
         w.start()
+        print(f"{i} - {w.pid} End start worker from Billiard Pool")
         self._poolctrl[w.pid] = sentinel
         self._on_ready_counters[w.pid] = on_ready_counter
+        print("On ready counter", on_ready_counter)
         if self.on_process_up:
+            print(f"{i} - {w.pid} Process up")
             self.on_process_up(w)
+        else:
+            print(f"{i} - {w.pid} Process up is Null")
         return w
 
     def process_flush_queues(self, worker):
@@ -1325,7 +1341,10 @@ class Pool:
                     self.restart_state.step()
             except IndexError:
                 self.restart_state.step()
-            self._create_worker_process(self._avail_index())
+            idx = self._avail_index()
+            print(f" -----> Repopulate pool: {idx} <-------")
+            self._create_worker_process(idx)
+            print(f" -----> Added worker to the pool {idx} <-------")
             debug('added worker')
 
     def _avail_index(self):
