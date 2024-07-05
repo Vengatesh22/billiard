@@ -1142,6 +1142,9 @@ class Pool:
 
     def _create_worker_process(self, i):
         print(f"{i} Begin create worker process from Billiard Pool")
+        master_pid = os.getpid()
+        master_mem = mem_rss()
+        print(f"{i} Master pid: {master_pid}, Master mem: {master_mem} kb")
         sentinel = self._ctx.Event() if self.allow_restart else None
         inq, outq, synq = self.get_process_queues()
         on_ready_counter = self._ctx.Value('i')
