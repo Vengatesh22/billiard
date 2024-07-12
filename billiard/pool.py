@@ -138,6 +138,9 @@ def starmapstar(args):
 def error(msg, *args, **kwargs):
     util.get_logger().error(msg, *args, **kwargs)
 
+def info(msg, *args, **kwargs):
+    util.get_logger().info(msg, *args, **kwargs)
+
 
 def stop_if_not_current(thread, timeout=None):
     if thread is not threading.current_thread():
@@ -1136,6 +1139,7 @@ class Pool:
         return self._inqueue, self._outqueue, None
 
     def _create_worker_process(self, i):
+        info(f"Begin create worker process billiard -  {i}")
         sentinel = self._ctx.Event() if self.allow_restart else None
         inq, outq, synq = self.get_process_queues()
         on_ready_counter = self._ctx.Value('i')
@@ -1149,16 +1153,22 @@ class Pool:
             max_memory_per_child=self._max_memory_per_child,
             on_ready_counter=on_ready_counter,
         ))
+        info(f"Add worker process to pool billiard -  {i}")
         self._pool.append(w)
+        info(f"Registering queues billiard -  {i}")
         self._process_register_queues(w, (inq, outq, synq))
         w.name = w.name.replace('Process', 'PoolWorker')
         w.daemon = True
         w.index = i
+        info(f"starting worker process billiard -  {i}")
         w.start()
+        info(f"Succesfully started worker process billiard -  {i} pid - {w.pid}")
         self._poolctrl[w.pid] = sentinel
         self._on_ready_counters[w.pid] = on_ready_counter
         if self.on_process_up:
+            info(f"Calling on_process_up billiard -  {i} pid - {w.pid}")
             self.on_process_up(w)
+        info(f"End create worker process billiard -  {i} pid - {w.pid}")
         return w
 
     def process_flush_queues(self, worker):
@@ -1192,6 +1202,7 @@ class Pool:
             if popen is None or exitcode is not None:
                 # worker exited
                 debug('Supervisor: cleaning up worker %d', i)
+                info(f"Supervisor: cleaning up worker {i} pid:{worker.pid}")
                 if popen is not None:
                     worker.join()
                 debug('Supervisor: worked %d joined', i)
@@ -1324,7 +1335,9 @@ class Pool:
                     self.restart_state.step()
             except IndexError:
                 self.restart_state.step()
-            self._create_worker_process(self._avail_index())
+            index = self._avail_index()
+            self._create_worker_process(index)
+            info(f"Repopulating pool billiard -  {index}")
             debug('added worker')
 
     def _avail_index(self):
