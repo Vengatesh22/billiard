@@ -133,7 +133,6 @@ def get_logger():
         if not _logger:
 
             _logger = logging.getLogger(LOGGER_NAME)
-            _logger.setLevel(logging.INFO)
             _logger.propagate = 0
             logging.addLevelName(SUBDEBUG, 'SUBDEBUG')
             logging.addLevelName(SUBWARNING, 'SUBWARNING')
